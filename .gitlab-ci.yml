@@ -1,0 +1,22 @@
+stages:
+  - build
+
+variables:
+  GRADLE_OPTS: "-Dorg.gradle.daemon=false"
+  JAVA_HOME: "/usr/lib/jvm/msopenjdk-21"
+
+build-job:
+  stage: build
+  image: mcr.microsoft.com/openjdk/jdk:21-ubuntu
+  before_script:
+    - chmod +x ./gradlew
+  script:
+    - ./gradlew build
+  artifacts:
+    name: "Artifacts"
+    paths:
+      - build/libs/
+    expire_in: 1 week
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "push"
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"

@@ -1,0 +1,15 @@
+{
+  "required": true,
+  "package": "xyz.memothelemo.instantrestock.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "mixins": [
+    "MerchantOfferMixin",
+    "VillagerEntityMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  },
+  "overwrites": {
+    "requireAnnotations": true
+  }
+}
