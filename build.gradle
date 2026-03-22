@@ -1,80 +1,68 @@
 plugins {
-	id 'fabric-loom' version "${loom_version}"
-	id 'maven-publish'
+    alias(libs.plugins.loom)
+    id("maven-publish")
 }
 
-version = project.mod_version
-group = project.maven_group
+def modId = project.property("mod_id").toString()
+def modName = project.property("mod_name").toString()
+def modVersion = project.property("mod_version").toString()
+def mavenGroup = project.property("maven_group").toString()
+def minimumMcVersion = project.property("min_minecraft_version").toString()
 
-base {
-	archivesName = project.archives_base_name
-}
+base.archivesName.set(modId)
+version = "$modVersion"
+group = mavenGroup
 
 repositories {
-    maven {
-        name = 'ParchmentMC'
-        url = 'https://maven.parchmentmc.org'
-    }
-}
-
-loom {
-	splitEnvironmentSourceSets()
-	mods {
-		"instantrestock" {
-			sourceSet sourceSets.main
-			sourceSet sourceSets.client
-		}
-	}
+    mavenCentral()
+    mavenLocal()
 }
 
 dependencies {
-	// To change the versions see the gradle.properties file
-	minecraft "com.mojang:minecraft:${project.minecraft_version}"
-    mappings loom.layered() {
-        officialMojangMappings()
-        parchment("org.parchmentmc.data:parchment-${project.minecraft_version}:${project.parchment_mc_version}@zip")
+    // To change the versions, see at `libs.versions.toml` file
+    // Fabric
+    minecraft(libs.minecraft)
+    implementation(libs.fabric.loader)
+
+    // Fabric API
+    implementation(libs.fabric.api)
+}
+
+tasks.processResources {
+    inputs.property("id", modId)
+    inputs.property("name", modName)
+    inputs.property("version", modVersion)
+
+    filteringCharset = "UTF-8"
+    filesMatching('fabric.mod.json') {
+        expand([
+            mod_id: modId,
+            mod_name: modName,
+            mod_version: modVersion,
+            fabric_loader_version: libs.versions.fabric.loader.get(),
+            min_minecraft_version: minimumMcVersion
+        ])
     }
-
-	modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
-	modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
-
-    include(modImplementation "me.lucko:fabric-permissions-api:0.3.3")
 }
 
-processResources {
-	inputs.property "version", project.version
-
-	filesMatching("fabric.mod.json") {
-		expand "version": inputs.properties.version
-	}
-}
-
-tasks.withType(JavaCompile).configureEach {
-	it.options.release = 21
+tasks.jar {
+    from("LICENSE")
 }
 
 java {
-	withSourcesJar()
-
-	sourceCompatibility = JavaVersion.VERSION_21
-	targetCompatibility = JavaVersion.VERSION_21
+    sourceCompatibility = JavaVersion.VERSION_25
+    targetCompatibility = JavaVersion.VERSION_25
+    withSourcesJar()
 }
 
-jar {
-	inputs.property "archivesName", project.base.archivesName
-
-	from("LICENSE") {
-		rename { "${it}_${inputs.properties.archivesName}"}
-	}
-}
-
+// configure the maven publication
 publishing {
-	publications {
-		create("mavenJava", MavenPublication) {
-			artifactId = project.archives_base_name
-			from components.java
-		}
-	}
+    publications {
+        create("mavenJava", MavenPublication) {
+            from(components["java"])
+        }
+    }
 
-	repositories {}
+    // select the repositories you want to publish to
+    repositories {}
 }

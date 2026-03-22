@@ -1,0 +1,84 @@
+package xyz.memothelemo.instantrestock.mixin;
+
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.ai.village.ReputationEventType;
+import net.minecraft.world.entity.npc.villager.AbstractVillager;
+import net.minecraft.world.entity.npc.villager.Villager;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.trading.MerchantOffer;
+import net.minecraft.world.level.Level;
+import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Unique;
+import org.spongepowered.asm.mixin.injection.At;
+import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.ModifyVariable;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
+import xyz.memothelemo.instantrestock.InstantRestock;
+import xyz.memothelemo.instantrestock.interfaces.IRMerchantOffer;
+
+@Mixin(Villager.class)
+public abstract class VillagerMixin extends AbstractVillager {
+    @Unique
+    private boolean ir$hasAppliedEffect = false;
+
+    public VillagerMixin(EntityType<? extends AbstractVillager> type, Level level) {
+        super(type, level);
+    }
+
+    @Unique
+    private void ir$applyEffect() {
+        this.ir$hasAppliedEffect = true;
+        for (MerchantOffer offer : this.getOffers()) {
+            ((IRMerchantOffer) offer).ir$applyEffect();
+        }
+    }
+
+    @Unique
+    private void ir$rollbackEffect() {
+        this.ir$hasAppliedEffect = false;
+        for (MerchantOffer offer : this.getOffers()) {
+            ((IRMerchantOffer) offer).ir$rollbackEffect();
+        }
+    }
+
+    @ModifyVariable(
+        method = "rewardTradeXp",
+        at = @At(value = "LOAD", ordinal = 0),
+        name = "popXp"
+    )
+    private int ir$reduceRewardXp(int value) {
+        if (!this.ir$hasAppliedEffect) return value;
+        return (int) ((float) value * 0.5f);
+    }
+
+    @Inject(method = "onReputationEventFrom", at = @At("HEAD"), cancellable = true)
+    private void ir$stopGossipingToTradingPlayer(ReputationEventType type, Entity source, CallbackInfo ci) {
+        if (this.ir$hasAppliedEffect && type == ReputationEventType.TRADE && this.getTarget() == this.getTradingPlayer()) {
+            ci.cancel();
+        }
+    }
+
+    @Inject(method = "getPlayerReputation", at = @At("HEAD"), cancellable = true)
+    public void ir$overridePlayerReputation(Player player, CallbackInfoReturnable<Integer> cir) {
+        // Return reputation to 0 if instant restock effect has applied
+        //
+        // So we don't have to get insane low prices if the player for
+        // example traded with the same villager dozens of times.
+        if (this.ir$hasAppliedEffect) cir.setReturnValue(0);
+    }
+
+    @Inject(method = "startTrading", at = @At("HEAD"))
+    public void ir$tryApplyIREffect(Player maybeServerPlayer, CallbackInfo ci) {
+        if (!(maybeServerPlayer instanceof ServerPlayer player)) return;
+        if (!InstantRestock.canApplyIRForPlayer(player) || this.ir$hasAppliedEffect) return;
+        this.ir$applyEffect();
+    }
+
+    @Inject(method = "stopTrading", at = @At("HEAD"))
+    public void ir$disableIREffect(CallbackInfo ci) {
+        if (this.ir$hasAppliedEffect) this.ir$rollbackEffect();
+    }
+}
