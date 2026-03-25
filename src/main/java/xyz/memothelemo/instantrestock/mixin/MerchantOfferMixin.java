@@ -1,9 +1,7 @@
 package xyz.memothelemo.instantrestock.mixin;
 
-import net.minecraft.util.Mth;
 import net.minecraft.world.item.trading.ItemCost;
 import net.minecraft.world.item.trading.MerchantOffer;
-import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
@@ -11,87 +9,83 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
-import xyz.memothelemo.instantrestock.ModRunner;
 import xyz.memothelemo.instantrestock.interfaces.IRMerchantOffer;
 
 @Mixin(MerchantOffer.class)
 public abstract class MerchantOfferMixin implements IRMerchantOffer {
-    @Shadow
-    @Final
-    private float priceMultiplier;
+    // Making this mod less overpowered by increasing the prices by a certain percentage
+    @Unique private static final float ir$PRICE_INCREASE_MULTIPLER = 1.2f;
+    @Unique private boolean ir$appliedIREffect = false;
 
-    @Shadow
-    public abstract int getDemand();
+    @Shadow public abstract ItemCost getItemCostA();
+    @Shadow public abstract void setSpecialPriceDiff(int value);
+    @Shadow public abstract int getSpecialPriceDiff();
 
-    @Shadow
-    public abstract float getPriceMultiplier();
+    @Unique
+    private int ir$getIRSpecialPriceDiff() {
+        return Math.round((float) this.getItemCostA().count() * ir$PRICE_INCREASE_MULTIPLER);
+    }
 
-    @Shadow
-    public abstract int getSpecialPriceDiff();
+    @Inject(method = "getModifiedCostCount", at = @At("TAIL"), cancellable = true)
+    private void ir$overrideModifiedCostCount(ItemCost cost, CallbackInfoReturnable<Integer> cir) {
+        // Keep the original special price difference
+        int originalPriceDiff = this.getSpecialPriceDiff();
+        this.setSpecialPriceDiff(this.ir$getIRSpecialPriceDiff());
 
-    @Unique private boolean appliedIREffect = false;
+        int result = cir.getReturnValue();
+        this.setSpecialPriceDiff(originalPriceDiff);
+
+        cir.setReturnValue(result);
+    }
 
     // This injected method is needed because `out of stock` byte
     // is included in the MerchantOffer codec.
     @Inject(method = "isOutOfStock", at = @At("HEAD"), cancellable = true)
-    public void overrideIsOutOfStock(CallbackInfoReturnable<Boolean> cir) {
-        if (this.appliedIREffect) cir.setReturnValue(false);
+    public void ir$overrideIsOutOfStock(CallbackInfoReturnable<Boolean> cir) {
+        if (this.ir$appliedIREffect) cir.setReturnValue(false);
     }
 
-    @Inject(method = "getModifiedCostCount", at = @At("HEAD"), cancellable = true)
-    private void getModifiedCostCount(ItemCost itemCost, CallbackInfoReturnable<Integer> cir) {
-        int i = itemCost.count();
-        int j = Math.max(0, Mth.floor((float)(i * this.getDemand()) * this.getPriceMultiplier()));
-        int count = Mth.clamp(i + j + this.getSpecialPriceDiff(), 1, itemCost.itemStack().getMaxStackSize());
-        cir.setReturnValue(count);
-    }
-
-    // This injected method is needed to disable special price difference
-    //
-    // ik it's unfair
-    @Inject(method = "getPriceMultiplier", at = @At("HEAD"), cancellable = true)
-    public void overridePriceMultiplier(CallbackInfoReturnable<Float> cir) {
-        // f(x) = 1.0468 * x^1.27247; x = current price multiplier
-        if (this.appliedIREffect) {
-            double result = 1.0468f * Math.pow(this.priceMultiplier, 1.27247);
-            cir.setReturnValue((float) result);
+    @Inject(method = "getSpecialPriceDiff", at = @At("HEAD"), cancellable = true)
+    public void ir$overrideSpecialPriceDiff(CallbackInfoReturnable<Integer> cir) {
+        if (this.ir$appliedIREffect) {
+            cir.setReturnValue(this.ir$getIRSpecialPriceDiff());
         }
     }
 
     @Inject(method = "getMaxUses", at = @At("HEAD"), cancellable = true)
-    public void overrideMaxUses(CallbackInfoReturnable<Integer> cir) {
-        if (this.appliedIREffect) cir.setReturnValue(Integer.MAX_VALUE);
+    public void ir$overrideMaxUses(CallbackInfoReturnable<Integer> cir) {
+        if (this.ir$appliedIREffect) cir.setReturnValue(Integer.MAX_VALUE);
     }
 
     @Inject(method = "getUses", at = @At("HEAD"), cancellable = true)
-    public void overrideUses(CallbackInfoReturnable<Integer> cir) {
-        if (this.appliedIREffect) cir.setReturnValue(0);
+    public void ir$overrideUses(CallbackInfoReturnable<Integer> cir) {
+        if (this.ir$appliedIREffect) cir.setReturnValue(0);
     }
 
     @Inject(method = "needsRestock", at = @At("HEAD"), cancellable = true)
-    public void overrideNeedsRestock(CallbackInfoReturnable<Boolean> cir) {
-        if (this.appliedIREffect) cir.setReturnValue(false);
+    public void ir$overrideNeedsRestock(CallbackInfoReturnable<Boolean> cir) {
+        if (this.ir$appliedIREffect) cir.setReturnValue(false);
     }
 
     @Inject(method = "increaseUses", at = @At("HEAD"), cancellable = true)
-    public void cancelIncreaseUses(CallbackInfo ci) {
-        if (this.appliedIREffect) ci.cancel();
+    public void ir$cancelIncreaseUses(CallbackInfo ci) {
+        if (this.ir$appliedIREffect) ci.cancel();
     }
 
     @Inject(method = "copy", at = @At("TAIL"))
-    public void copyAppliedIREffect(CallbackInfoReturnable<MerchantOffer> cir) {
+    public void ir$copyAppliedIREffect(CallbackInfoReturnable<MerchantOffer> cir) {
         MerchantOfferMixin offer = (MerchantOfferMixin) (IRMerchantOffer) cir.getReturnValue();
         assert offer != null;
-        offer.appliedIREffect = this.appliedIREffect;
+        offer.ir$appliedIREffect = this.ir$appliedIREffect;
     }
 
     @Override
-    public void ir$applyIREffect() {
-        this.appliedIREffect = true;
+    public void ir$applyEffect() {
+        this.ir$appliedIREffect = true;
     }
 
     @Override
-    public void ir$revertIREffect() {
-        this.appliedIREffect = false;
+    public void ir$rollbackEffect() {
+        this.ir$appliedIREffect = false;
     }
 }
