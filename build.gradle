@@ -26,6 +26,10 @@ dependencies {
 
     // Fabric API
     implementation(libs.fabric.api)
+
+    // Fabric Permissions API
+    include(libs.fabric.permissions)
+    implementation(libs.fabric.permissions)
 }
 
 tasks.processResources {
