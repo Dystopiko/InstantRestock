@@ -22,14 +22,15 @@ dependencies {
     // To change the versions, see at `libs.versions.toml` file
     // Fabric
     minecraft(libs.minecraft)
-    implementation(libs.fabric.loader)
+    mappings(loom.officialMojangMappings())
+    modImplementation(libs.fabric.loader)
 
     // Fabric API
-    implementation(libs.fabric.api)
+    modImplementation(libs.fabric.api)
 
     // Fabric Permissions API
     include(libs.fabric.permissions)
-    implementation(libs.fabric.permissions)
+    modImplementation(libs.fabric.permissions)
 }
 
 tasks.processResources {
