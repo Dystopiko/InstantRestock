@@ -1,8 +1,10 @@
 package xyz.memothelemo.instantrestock.mixin;
 
+import com.llamalad7.mixinextras.sugar.Local;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.ExperienceOrb;
 import net.minecraft.world.entity.ai.village.ReputationEventType;
 import net.minecraft.world.entity.npc.villager.AbstractVillager;
 import net.minecraft.world.entity.npc.villager.Villager;
@@ -13,7 +15,6 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
-import org.spongepowered.asm.mixin.injection.ModifyVariable;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import xyz.memothelemo.instantrestock.InstantRestock;
@@ -44,14 +45,27 @@ public abstract class VillagerMixin extends AbstractVillager {
         }
     }
 
-    @ModifyVariable(
+    @Inject(
         method = "rewardTradeXp",
-        at = @At(value = "LOAD", ordinal = 0),
-        name = "popXp"
+        at = @At(
+            value = "INVOKE",
+            target = "Lnet/minecraft/world/level/Level;addFreshEntity(Lnet/minecraft/world/entity/Entity;)Z"
+        ),
+        cancellable = true
     )
-    private int ir$reduceRewardXp(int value) {
-        if (!this.ir$hasAppliedEffect) return value;
-        return (int) ((float) value * 0.5f);
+    private void ir$reduceRewardXp(MerchantOffer merchantOffer, CallbackInfo ci, @Local int i) {
+        if (this.ir$hasAppliedEffect) return;
+
+        ExperienceOrb orb = new ExperienceOrb(
+            this.level(),
+            this.getX(),
+            this.getY() + (double) 0.5F,
+            this.getZ(),
+            (int)((float) i * 0.5F)
+        );
+
+        this.level().addFreshEntity(orb);
+        ci.cancel();
     }
 
     @Inject(method = "onReputationEventFrom", at = @At("HEAD"), cancellable = true)
