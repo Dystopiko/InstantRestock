@@ -1,5 +1,7 @@
 package xyz.memothelemo.instantrestock.mixin;
 
+import net.minecraft.resources.Identifier;
+import net.minecraft.world.item.Items;
 import net.minecraft.world.item.trading.ItemCost;
 import net.minecraft.world.item.trading.MerchantOffer;
 import org.spongepowered.asm.mixin.Mixin;
@@ -14,7 +16,7 @@ import xyz.memothelemo.instantrestock.interfaces.IRMerchantOffer;
 @Mixin(MerchantOffer.class)
 public abstract class MerchantOfferMixin implements IRMerchantOffer {
     // Making this mod less overpowered by increasing the prices by a certain percentage
-    @Unique private static final float ir$PRICE_INCREASE_MULTIPLER = 1.2f;
+    @Unique private static final float ir$PRICE_INCREASE_MULTIPLER = 0.55F;
     @Unique private boolean ir$appliedIREffect = false;
 
     @Shadow public abstract ItemCost getItemCostA();
@@ -23,6 +25,14 @@ public abstract class MerchantOfferMixin implements IRMerchantOffer {
 
     @Unique
     private int ir$getIRSpecialPriceDiff() {
+        Identifier stickIdentifier = Identifier.parse(Items.STICK.toString());
+
+        // Make the stick -> emerald more expensive than other offers
+        boolean offersStick = this.getItemCostA().item().is(stickIdentifier);
+        if (offersStick) {
+            return Math.round((float) this.getItemCostA().count());
+        }
+
         return Math.round((float) this.getItemCostA().count() * ir$PRICE_INCREASE_MULTIPLER);
     }
 
