@@ -22,15 +22,14 @@ dependencies {
     // To change the versions, see at `libs.versions.toml` file
     // Fabric
     minecraft(libs.minecraft)
-    mappings(loom.officialMojangMappings())
-    modImplementation(libs.fabric.loader)
+    implementation(libs.fabric.loader)
 
     // Fabric API
-    modImplementation(libs.fabric.api)
+    implementation(libs.fabric.api)
 
     // Fabric Permissions API
     include(libs.fabric.permissions)
-    modImplementation(libs.fabric.permissions)
+    implementation(libs.fabric.permissions)
 }
 
 tasks.processResources {
@@ -55,8 +54,8 @@ tasks.jar {
 }
 
 java {
-    sourceCompatibility = JavaVersion.VERSION_21
-    targetCompatibility = JavaVersion.VERSION_21
+    sourceCompatibility = JavaVersion.VERSION_25
+    targetCompatibility = JavaVersion.VERSION_25
     withSourcesJar()
 }
 
