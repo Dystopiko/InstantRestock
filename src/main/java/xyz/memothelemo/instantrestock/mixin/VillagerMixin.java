@@ -53,6 +53,7 @@ public abstract class VillagerMixin extends AbstractVillager {
         ),
         cancellable = true
     )
+    @SuppressWarnings("resource")
     private void ir$reduceRewardXp(MerchantOffer merchantOffer, CallbackInfo ci, @Local int i) {
         if (this.ir$hasAppliedEffect) return;
 

@@ -1,11 +1,7 @@
 package xyz.memothelemo.instantrestock.mixin;
 
-import net.minecraft.resources.Identifier;
-import net.minecraft.world.item.Items;
-import net.minecraft.world.item.trading.ItemCost;
 import net.minecraft.world.item.trading.MerchantOffer;
 import org.spongepowered.asm.mixin.Mixin;
-import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -18,48 +14,11 @@ public abstract class MerchantOfferMixin implements IRMerchantOffer {
     // Making this mod less overpowered by increasing the prices by a certain percentage
     @Unique private static final float ir$PRICE_INCREASE_MULTIPLER = 0.55F;
     @Unique private boolean ir$appliedIREffect = false;
-
-    @Shadow public abstract ItemCost getItemCostA();
-    @Shadow public abstract void setSpecialPriceDiff(int value);
-    @Shadow public abstract int getSpecialPriceDiff();
-
-    @Unique
-    private int ir$getIRSpecialPriceDiff() {
-        Identifier stickIdentifier = Identifier.parse(Items.STICK.toString());
-
-        // Make the stick -> emerald more expensive than other offers
-        boolean offersStick = this.getItemCostA().item().is(stickIdentifier);
-        if (offersStick) {
-            return Math.round((float) this.getItemCostA().count());
-        }
-
-        return Math.round((float) this.getItemCostA().count() * ir$PRICE_INCREASE_MULTIPLER);
-    }
-
-    @Inject(method = "getModifiedCostCount", at = @At("TAIL"), cancellable = true)
-    private void ir$overrideModifiedCostCount(ItemCost cost, CallbackInfoReturnable<Integer> cir) {
-        // Keep the original special price difference
-        int originalPriceDiff = this.getSpecialPriceDiff();
-        this.setSpecialPriceDiff(this.ir$getIRSpecialPriceDiff());
-
-        int result = cir.getReturnValue();
-        this.setSpecialPriceDiff(originalPriceDiff);
-
-        cir.setReturnValue(result);
-    }
-
     // This injected method is needed because `out of stock` byte
     // is included in the MerchantOffer codec.
     @Inject(method = "isOutOfStock", at = @At("HEAD"), cancellable = true)
     public void ir$overrideIsOutOfStock(CallbackInfoReturnable<Boolean> cir) {
         if (this.ir$appliedIREffect) cir.setReturnValue(false);
-    }
-
-    @Inject(method = "getSpecialPriceDiff", at = @At("HEAD"), cancellable = true)
-    public void ir$overrideSpecialPriceDiff(CallbackInfoReturnable<Integer> cir) {
-        if (this.ir$appliedIREffect) {
-            cir.setReturnValue(this.ir$getIRSpecialPriceDiff());
-        }
     }
 
     @Inject(method = "getMaxUses", at = @At("HEAD"), cancellable = true)
