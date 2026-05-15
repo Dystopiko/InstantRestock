@@ -16,7 +16,6 @@ import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import xyz.memothelemo.instantrestock.InstantRestock;
 import xyz.memothelemo.instantrestock.interfaces.IRMerchantOffer;
 
@@ -74,15 +73,6 @@ public abstract class VillagerMixin extends AbstractVillager {
         if (this.ir$hasAppliedEffect && type == ReputationEventType.TRADE && this.getTarget() == this.getTradingPlayer()) {
             ci.cancel();
         }
-    }
-
-    @Inject(method = "getPlayerReputation", at = @At("HEAD"), cancellable = true)
-    public void ir$overridePlayerReputation(Player player, CallbackInfoReturnable<Integer> cir) {
-        // Return reputation to 0 if instant restock effect has applied
-        //
-        // So we don't have to get insane low prices if the player for
-        // example traded with the same villager dozens of times.
-        if (this.ir$hasAppliedEffect) cir.setReturnValue(0);
     }
 
     @Inject(method = "startTrading", at = @At("HEAD"))
